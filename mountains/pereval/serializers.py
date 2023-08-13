@@ -12,8 +12,8 @@ class UsersSerializer(serializers.ModelSerializer):
 
 
 class ImagesSerializer(serializers.ModelSerializer):
-    data_1 = serializers.URLField(label='URL изображения 1', allow_blank=True)
-    data_2 = serializers.URLField(label='URL изображения 2', allow_blank=True)
+    data_1 = serializers.URLField(label='URL Image 1', allow_blank=True)
+    data_2 = serializers.URLField(label='URL Image 2', allow_blank=True)
 
     class Meta:
         model = Images
@@ -45,8 +45,32 @@ class PerevalSerializer(serializers.ModelSerializer):
         images = Images.objects.create(**images_data)
         coords = Coords.objects.create(**coords_data)
 
-        pereval = Pereval.objects.create(user=user, images=images, coord=coords, **validated_data)
+        pereval = Pereval.objects.create(user=user, images=images, coords=coords, **validated_data)
         pereval.save()
         return pereval
+
+class PerevalDetailsSerializer(WritableNestedModelSerializer):
+    user = UsersSerializer()
+    images = ImagesSerializer()
+    coords = CoordsSerializer()
+
+    class Meta:
+        model = Pereval
+        fields = ['id', 'beauty_title', 'title', 'other_titles', 'connect', 'add_time',  'user', 'coords',
+                  'status', 'level', 'images']
+
+    def validate(self, data):
+        user_data = data.get('user')
+        user = self.instance.user
+        if user_data is not None:
+
+            if user.first_name != user_data.get('fam') \
+                    or user.last_name != user_data.get('name') \
+                    or user.patronymic != user_data.get('otc') \
+                    or user.email != user_data.get('phone') \
+                    or user.phone != user_data.get('email'):
+                raise ValidationError({'message': 'Редактировать можно все поля, кроме тех, что содержат в себе ФИО,'
+                                                  ' адрес почты и номер телефона.'})
+            return data
 
 

@@ -1,8 +1,9 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, generics, status
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from .models import Pereval
-from .serializers import PerevalSerializer
+from .serializers import PerevalSerializer, PerevalDetailsSerializer
 
 
 class SubmitData(mixins.CreateModelMixin,
@@ -12,7 +13,6 @@ class SubmitData(mixins.CreateModelMixin,
     serializer_class = PerevalSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['user__email']
-
 
     def post(self, request, *args, **kwargs):
         serializer = PerevalSerializer(data=request.data)
@@ -24,3 +24,22 @@ class SubmitData(mixins.CreateModelMixin,
         if status.HTTP_500_INTERNAL_SERVER_ERROR:
             return Response({'status': status.HTTP_500_INTERNAL_SERVER_ERROR, 'message': serializer.errors})
 
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+class SubmitDetailsData(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, generics.GenericAPIView):
+    queryset = Pereval.objects.all()
+    serializer_class = PerevalDetailsSerializer
+
+    def get(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
+
+    def patch(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = PerevalDetailsSerializer(instance=instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            if instance.status != 'new':
+                raise ValidationError(f'Статус данных изменился на: {instance.status}. Редактирование запрещено')
+            serializer.save()
+            return Response({'state': 1, 'message': 'Данные успешно отредактированы'})
+        return Response({'state': 0, 'message': serializer.errors})
